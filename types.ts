@@ -14,6 +14,7 @@ export interface Detection {
 export type SearchEndpoint = 
   | 'search/detections' 
   | 'search/endpointActivities' 
+  | 'search/mobileActivities'
   | 'search/networkActivities' 
   | 'search/emailActivities' 
   | 'search/cloudActivities' 

@@ -12,11 +12,17 @@ export const analyzeDetections = async (detections: Detection[]): Promise<string
     ${JSON.stringify(detections.slice(0, 10))}
     
     Provide a concise summary of:
-    1. Key threat patterns observed (e.g., common attachment types, suspicious subjects).
-    2. High-risk users or targets.
-    3. Recommended immediate response actions for these specific events.
+    1. Quick summary 10-20 words of the event, make a judgement between False Positive, True Positive or Suspicious
+    2. Key threat patterns observed (e.g., common attachment types, suspicious subjects).
+    3. High-risk users or targets.
+    4. Recommended immediate response actions for these specific events.
     
     Format the output using professional Markdown with clear headings. Use a serious, analytical tone.
+    Use Markdown headings for main sections: # for title, ### or #### for subsections.
+    Include bold labels for metadata (Date, Analyst, Severity),users, files, tools
+    Add one blank line between list blocks and paragraphs.
+    Keep three dashes --- to separate metadata from content, if present.
+    Keep the formatting consistent throughout all sections.
   `;
 
   try {

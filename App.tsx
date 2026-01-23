@@ -83,9 +83,9 @@ const ProcessChain = React.memo(({ detections, isActive }: { detections: Detecti
 
       const user = d.objectUser || d.suser || "System";
       const parent = d.parentFilePath || d.parentProcessName || d.parentName;
-      const process =  d.processFilePath || d.processName ;
+      const process = d.processFilePath || d.processName;
       const object = d.objectFilePath || d.objectName;
-      const processCmd = d.processCmd
+      const objectCmd = d.objectCmd || d.processCmd
 
       // Identity -> Parent -> Process -> Object
       const userId = getSafeId(`u_${user}`);
@@ -101,15 +101,17 @@ const ProcessChain = React.memo(({ detections, isActive }: { detections: Detecti
           nodes.set(processId, `${getIcon(process)}${carveString(process)}`);
           edges.add(`${parentId} --> ${processId}`);
 
-          const processCmdId = getSafeId(`pr_${processCmd}`);
-          nodes.set(processCmdId, `${getIcon(process)}${carveString(process)}`);
-          edges.add(`${userId} --> ${processCmdId}`);
-
           if (object) {
             const objectId = getSafeId(`obj_${object}`);
             nodes.set(objectId, `📄 ${carveString(object)}`);
             edges.add(`${processId} --> ${objectId}`);
           }
+          if(objectCmd){
+            const objectCmdId = getSafeId(`obj_${objectCmd}`);
+            nodes.set(objectCmdId, `📄 ${carveString(objectCmd)}`);
+            edges.add(`${processId} --> ${objectCmdId}`);
+          }
+
         }
       } else if (process) {
         const processId = getSafeId(`pr_${process}`);
@@ -117,7 +119,7 @@ const ProcessChain = React.memo(({ detections, isActive }: { detections: Detecti
         edges.add(`${userId} --> ${processId}`);
       }
     });
-// ------------------------------------- MERMAID LOGIC ----------------------------------
+
     if (nodes.size === 0) return null;
 
     let def = "graph LR\n";
@@ -354,11 +356,11 @@ const TelemetryGraph = React.memo(({
           <div className="flex items-center space-x-4 cursor-pointer group" onClick={onToggleCollapse}>
              <div className="w-2 h-8 bg-red-600 shadow-[0_0_15px_rgba(239,68,68,0.7)]"></div>
              <div>
-               <h3 className="text-[16px] font-black uppercase tracking-[0.4em] text-gray-100 group-hover:text-red-500 transition-colors flex items-center">
-                 TELEMETRY DENSITY
+               <h3 className="text-[19px] font-black uppercase tracking-[0.4em] text-gray-100 group-hover:text-red-500 transition-colors flex items-center">
+                 Telemetry Density
                  <i className={`fa-solid fa-chevron-down ml-4 text-[9px] transition-transform duration-700 ${isCollapsed ? '-rotate-90 text-gray-800' : 'rotate-0 text-red-600'}`}></i>
                </h3>
-               {!isCollapsed && <p className="text-[11px] text-gray-500 font-black uppercase tracking-[0.2em] mt-1 opacity-60">Temporal Node Distribution</p>}
+               {!isCollapsed && <p className="text-[11px] text-gray-500 font-black uppercase tracking-[0.2em] mt-1 opacity-60">Temporal Logs Distribution</p>}
              </div>
           </div>
           
@@ -366,14 +368,14 @@ const TelemetryGraph = React.memo(({
              {selectedDate && !isCollapsed && (
                <button 
                 onClick={() => onDateClick(null)}
-                className="text-red-500 hover:text-red-400 font-black uppercase border-b border-red-600/60 pb-1 transition-all animate-pulse"
+                className="text-[14px] text-red-500 hover:text-red-400 font-black uppercase border-b border-red-600/60 pb-1 transition-all animate-pulse"
                >
-                 <i className="fa-solid fa-filter-circle-xmark mr-2.5"></i>
+                 <i className="fa-solid fa-filter-circle-xmark mr-2.5 "></i>
                  RESET FILTER: {selectedDate}
                </button>
              )}
              <div className="flex flex-col items-end">
-                <span className="text-[9px] text-gray-700 uppercase font-black tracking-widest">PACKET_COUNT</span>
+                <span className="text-[11px] text-gray-700 uppercase font-black tracking-widest">Log Count</span>
                 <span className="text-2xl text-red-600 font-black tracking-tighter shadow-sm">{detections.length}</span>
              </div>
           </div>
@@ -384,11 +386,11 @@ const TelemetryGraph = React.memo(({
             {loading ? (
               <div className="w-full h-full flex items-center justify-center space-x-5">
                  <i className="fa-solid fa-satellite fa-spin text-red-600 text-2xl opacity-80"></i>
-                 <span className="text-[11px] font-black uppercase tracking-[0.8em] animate-pulse text-red-500">Establishing Uplink...</span>
+                 <span className="text-[11px] font-black uppercase tracking-[0.8em] animate-pulse text-red-500">Fetching Data from Trend Servers...</span>
               </div>
             ) : chartData.length === 0 ? (
               <div className="w-full h-full flex items-center justify-center">
-                 <span className="text-[11px] text-gray-800 font-black uppercase tracking-[0.8em] opacity-30">NO_TELEMETRY_LINKED</span>
+                 <span className="text-[11px] text-gray-800 font-black uppercase tracking-[0.8em] opacity-30">No Data Found</span>
               </div>
             ) : (
               chartData.map((data, i) => {
@@ -422,8 +424,9 @@ const TelemetryGraph = React.memo(({
 });
 
 const TABS: { id: SearchEndpoint; label: string; icon: string }[] = [
-  { id: 'search/detections', label: 'Detections', icon: 'fa-solid fa-shield-halved' },
   { id: 'search/endpointActivities', label: 'Endpoint', icon: 'fa-solid fa-laptop' },
+  { id: 'search/detections', label: 'Detections', icon: 'fa-solid fa-shield-halved' },
+  { id: 'search/mobileActivities', label: 'Mobile', icon: 'fa-solid fa-mobile-screen-button' },
   { id: 'search/networkActivities', label: 'Network', icon: 'fa-solid fa-network-wired' },
   { id: 'search/emailActivities', label: 'Email', icon: 'fa-solid fa-envelope-open-text' },
   { id: 'search/cloudActivities', label: 'Cloud', icon: 'fa-solid fa-cloud' },
@@ -436,7 +439,7 @@ const App: React.FC = () => {
   const [analyzing, setAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<SearchEndpoint>('search/detections');
+  const [activeTab, setActiveTab] = useState<SearchEndpoint>('search/endpointActivities');
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [dateFilter, setDateFilter] = useState<string | null>(null);
@@ -455,7 +458,7 @@ const App: React.FC = () => {
   });
 
   const [tmv1Query, setTmv1Query] = useState('endpointHostName:"*"');
-  const [selectFields, setSelectFields] = useState('');
+  const [selectFields, setSelectFields] = useState('objectUser,parentFilePath,processFilePath,objectFilePath,eventName,eventTime,severity');
   
   const [startDate, setStartDate] = useState(() => {
     const d = new Date();
@@ -490,6 +493,7 @@ const App: React.FC = () => {
 
   const handleFetch = async () => {
     setLoading(true);
+    setShowAdvanced(false);
     setError(null);
     setAnalysis(null);
     setExpandedRows(new Set());
@@ -551,16 +555,16 @@ const App: React.FC = () => {
           </div>
           <div>
             <h1 className="text-2xl font-black tracking-tighter leading-none">
-              VISIONONE <span className="text-red-600">COMMAND</span>
+              VISION <span className="text-red-600">ONE - XDR</span>
             </h1>
-            <p className="text-[8px] font-black tracking-[0.5em] text-gray-500 uppercase mt-1.5">Strategic Defense Terminal v1.3</p>
+            <p className="text-[8px] font-black tracking-[0.5em] text-gray-500 uppercase mt-1.5">The Search you need when shit goes down</p>
           </div>
         </div>
         
         <div className="flex items-center space-x-6">
           <div className={`hidden md:flex items-center space-x-3.5 px-4 py-1.5 bg-neutral-900/90 rounded-sm border border-titanium-border backdrop-blur-xl shadow-inner`}>
             <div className={`w-2 h-2 rounded-full ${loading ? 'bg-orange-500 animate-pulse' : 'bg-green-600 shadow-[0_0_10px_#16a34a]'}`}></div>
-            <span className="text-[9px] font-black font-mono text-gray-400 uppercase tracking-[0.15em]">{loading ? 'SCANNING_UPLINK' : 'LINK_ESTABLISHED'}</span>
+            <span className="text-[9px] font-black font-mono text-gray-400 uppercase tracking-[0.15em]">{loading ? 'Fetching Data' : 'Data Ready '}</span>
           </div>
           <button 
             onClick={() => {
@@ -596,22 +600,22 @@ const App: React.FC = () => {
         <div className="flex flex-col lg:flex-row items-stretch lg:items-center px-8">
           <div className="flex items-center space-x-6 border-r titanium-border pr-8 py-5">
              <div className="flex flex-col">
-               <span className="text-[9px] font-black text-gray-600 uppercase mb-1.5 tracking-[0.2em]">START_PHASE</span>
+               <span className="text-[14px] font-black text-gray-600 uppercase mb-1.5 tracking-[0.2em]">Start Date</span>
                <input 
                   type="datetime-local" 
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  className="bg-black border-red-900/50 border rounded-sm px-4 py-2.5 text-[13px] font-mono text-gray-200 focus:border-red-600 outline-none transition-all shadow-inner"
+                  className="bg-black border-red-900/50 border rounded-sm px-4 py-2.5 text-[14px] font-mono text-gray-200 focus:border-red-600 outline-none transition-all shadow-inner"
                 />
              </div>
              <i className="fa-solid fa-arrow-right-long text-red-900 mt-5 text-lg"></i>
              <div className="flex flex-col">
-               <span className="text-[9px] font-black text-gray-600 uppercase mb-1.5 tracking-[0.2em]">END_PHASE</span>
+               <span className="text-[14px] font-black text-gray-600 uppercase mb-1.5 tracking-[0.2em]">End Date</span>
                <input 
                   type="datetime-local" 
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  className="bg-black border-red-900/50 border rounded-sm px-4 py-2.5 text-[13px] font-mono text-gray-200 focus:border-red-600 outline-none transition-all shadow-inner"
+                  className="bg-black border-red-900/50 border rounded-sm px-4 py-2.5 text-[14px] font-mono text-gray-200 focus:border-red-600 outline-none transition-all shadow-inner"
                 />
              </div>
           </div>
@@ -631,21 +635,21 @@ const App: React.FC = () => {
                    onClick={() => setShowAdvanced(!showAdvanced)}
                    className="absolute right-5 top-1/2 -translate-y-1/2 text-[9px] font-black text-red-500 hover:text-red-400 uppercase tracking-[0.15em] border border-red-900/60 px-3 py-1 bg-red-950/30 rounded-sm"
                 >
-                   {showAdvanced ? 'CLOSE_MATRIX' : 'OPEN_MATRIX'}
+                   {showAdvanced ? 'Close Matrix' : 'Open Matrix'}
                 </button>
              </div>
           </div>
 
           <div className="py-5 pl-8 border-l titanium-border flex items-center">
              <div className="flex flex-col items-end">
-                <span className="text-[9px] font-black text-gray-600 uppercase mb-1.5 tracking-[0.2em]">READY_ENGAGE</span>
+
                 <button 
                   onClick={handleFetch}
                   disabled={loading}
                   className="h-13 px-11 bg-red-800 hover:bg-red-600 disabled:bg-red-950/60 text-white font-black rounded-sm shadow-[0_0_25px_rgba(239,68,68,0.5)] transition-all active:scale-95 flex items-center space-x-4 uppercase text-[15px] tracking-[0.2em] border border-red-500/50"
                 >
                   {loading ? (
-                    <><i className="fa-solid fa-sync fa-spin"></i><span>SYNCING</span></>
+                    <><i className="fa-solid fa-sync fa-spin"></i><span>SEARCHING...</span></>
                   ) : (
                     <><i className="fa-solid fa-satellite text-2xl"></i><span>SEARCH</span></>
                   )}
@@ -659,7 +663,7 @@ const App: React.FC = () => {
              <div className="grid grid-cols-2 gap-12">
                 <div className="space-y-4">
                   <label className="text-[14px] font-black text-red-500 uppercase tracking-[0.2em] flex items-center">
-                    <i className="fa-solid fa-terminal mr-3"></i> SEARCH_QUERY_LOGIC
+                    <i className="fa-solid fa-terminal mr-3"></i> Search Query Logic
                   </label>
                   <textarea 
                     value={tmv1Query}
@@ -670,13 +674,13 @@ const App: React.FC = () => {
                 </div>
                 <div className="space-y-4">
                   <label className="text-[14px] font-black text-gray-500 uppercase tracking-[0.2em] flex items-center">
-                    <i className="fa-solid fa-layer-group mr-3"></i> SCHEMA_PROJECTION_MATRIX
+                    <i className="fa-solid fa-layer-group mr-3"></i> Schema Project Matrix
                   </label>
                   <textarea 
                     value={selectFields}
                     onChange={(e) => setSelectFields(e.target.value)}
                     className="w-full h-32 bg-[#050505] border titanium-border rounded-sm p-5 font-mono text-[14px] text-gray-400 focus:border-red-600 outline-none transition-all leading-relaxed shadow-inner"
-                    placeholder="objectUser,parentFilePath,processFilePath... or leave it blank to capture all fields"
+                    placeholder="objectUser, parentFilePath, processFilePath, objectFilePath, eventName, severity..."
                   />
                 </div>
              </div>
@@ -693,7 +697,7 @@ const App: React.FC = () => {
         onToggleCollapse={() => setIsGraphCollapsed(!isGraphCollapsed)}
       />
 
-      <main className="flex-1 p-8 overflow-y-auto relative bg-[#050505]">
+      <main className="mt-4 flex-1 p-8 overflow-y-auto relative bg-[#050505]">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-10">
           <div className="lg:col-span-3">
             <div className="titanium-black rounded-sm border titanium-border overflow-hidden shadow-[0_0_40px_rgba(0,0,0,0.8)] bg-[#0a0a0a]">
@@ -703,14 +707,14 @@ const App: React.FC = () => {
                 <div className="flex items-center space-x-2.5">
                   <button 
                     onClick={() => setViewMode('grid')}
-                    className={`px-6 py-2.5 text-[10px] font-black uppercase tracking-[0.2em] rounded-sm transition-all flex items-center space-x-3.5 ${viewMode === 'grid' ? 'bg-red-800 text-white shadow-[0_0_15px_rgba(239,68,68,0.6)] border border-red-500' : 'text-gray-500 hover:text-gray-300 hover:bg-neutral-900'}`}
+                    className={`px-6 py-2.5 text-[12px] font-black uppercase tracking-[0.2em] rounded-sm transition-all flex items-center space-x-3.5 ${viewMode === 'grid' ? 'bg-red-800 text-white shadow-[0_0_15px_rgba(239,68,68,0.6)] border border-red-500' : 'text-gray-500 hover:text-gray-300 hover:bg-neutral-900'}`}
                   >
                     <i className="fa-solid fa-table-list"></i>
                     <span>Telemetry Grid</span>
                   </button>
                   <button 
                     onClick={() => setViewMode('chain')}
-                    className={`px-6 py-2.5 text-[10px] font-black uppercase tracking-[0.2em] rounded-sm transition-all flex items-center space-x-3.5 ${viewMode === 'chain' ? 'bg-red-800 text-white shadow-[0_0_15px_rgba(239,68,68,0.6)] border border-red-500' : 'text-gray-500 hover:text-gray-300 hover:bg-neutral-900'}`}
+                    className={`px-6 py-2.5 text-[12px] font-black uppercase tracking-[0.2em] rounded-sm transition-all flex items-center space-x-3.5 ${viewMode === 'chain' ? 'bg-red-800 text-white shadow-[0_0_15px_rgba(239,68,68,0.6)] border border-red-500' : 'text-gray-500 hover:text-gray-300 hover:bg-neutral-900'}`}
                   >
                     <i className="fa-solid fa-diagram-successor"></i>
                     <span>Process Chain</span>
@@ -727,7 +731,7 @@ const App: React.FC = () => {
                 </div>
                 <div className="flex items-center space-x-5">
                   <span className="text-[10px] font-black text-gray-700 uppercase tracking-[0.3em] border-r titanium-border pr-5">VIEW: {viewMode.toUpperCase()}</span>
-                  <span className="text-[10px] font-black text-red-600/70 uppercase tracking-[0.3em] animate-pulse">BUFFER_SYNC: {filteredDetections.length} NODES</span>
+                  <span className="text-[10px] font-black text-red-600/70 uppercase tracking-[0.3em] animate-pulse">Logs Scope: {filteredDetections.length} NODES</span>
                 </div>
               </div>
 
@@ -793,7 +797,7 @@ const App: React.FC = () => {
                     onClick={() => setDisplayLimit(prev => prev + 200)}
                     className="text-[12px] font-black text-gray-500 hover:text-red-500 uppercase tracking-[0.4em] border border-titanium-border px-12 py-4 rounded-sm transition-all hover:bg-red-950/20 hover:border-red-600/60 shadow-lg active:scale-95"
                   >
-                    Sync More Telemetry (Showing {displayLimit} / {filteredDetections.length})
+                    Fetch remaining Logs (Showing {displayLimit} / {filteredDetections.length})
                   </button>
                 </div>
               )}
@@ -801,24 +805,17 @@ const App: React.FC = () => {
           </div>
 
           <div className="space-y-8">
-            <div className="grid grid-cols-1 gap-6">
-               <StatCard 
-                 label="Protocol Node State" 
-                 value={dateFilter ? "FILTER_ACTIVE" : "FULL_BUFFER"} 
-                 icon="fa-solid fa-crosshairs" 
-                 color={dateFilter ? "text-green-500 animate-pulse" : "text-gray-700"} 
-               />
-            </div>
+
 
             {filteredDetections.length > 0 && (
               <div className="titanium-black border border-red-900/50 rounded-sm p-8 space-y-5 shadow-2xl relative overflow-hidden bg-gradient-to-br from-[#141414] to-[#080808]">
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-red-600 to-transparent shadow-[0_0_15px_#ef4444]"></div>
                 <div className="flex items-center space-x-3 text-red-500 mb-3">
                   <i className="fa-solid fa-microchip text-xl"></i>
-                  <span className="text-[16px] font-black uppercase tracking-[0.25em]">GEMINI_v3 INTELLIGENCE</span>
+                  <span className="text-[25px] font-black uppercase tracking-[0.25em]">ASK AI</span>
                 </div>
                 <p className="text-[12px] text-gray-400 uppercase font-black leading-relaxed tracking-widest opacity-80">
-                  Generate comprehensive strategic analysis for {filteredDetections.length} telemetry clusters using advanced LLM reasoning.
+                  Generate a comprehensive analysis of the {filteredDetections.length} telemetry clusters using Gemini 3.
                 </p>
                 <button 
                   onClick={handleAnalyze}
