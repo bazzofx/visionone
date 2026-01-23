@@ -1,0 +1,5 @@
+{
+  "name": "VisionOne XDR Command",
+  "description": "A sophisticated SOC dashboard for Trend Micro Vision One detections, featuring automated query building, real-time filtering, and AI-powered threat analysis.",
+  "requestFramePermissions": []
+}
