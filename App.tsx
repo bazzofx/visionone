@@ -40,10 +40,10 @@ const SeverityBadge = React.memo(({ severity }: { severity?: string }) => {
 const TelemetryCell = ({ det, field }: { det: Detection, field: string }) => {
   const val = det[field];
   if (field === 'severity') return <SeverityBadge severity={val} />;
-  if (field === 'eventTime') return <span className="text-[10px] text-gray-400 font-mono tracking-tighter">{new Date(val).toLocaleString()}</span>;
-  if (field === 'eventName') return <span className="text-[9px] font-black text-red-500 mono bg-red-950/20 px-1.5 py-0.5 rounded border border-red-900/30 uppercase">{val}</span>;
-  if (typeof val === 'object') return <span className="text-[9px] text-gray-500 mono italic">{JSON.stringify(val).substring(0, 30)}...</span>;
-  return <span className="text-[11px] text-gray-300 font-semibold tracking-tight whitespace-nowrap overflow-hidden text-ellipsis max-w-[200px] block">{val || '---'}</span>;
+  if (field === 'eventTime') return <span className="text-[12px] text-gray-400 font-mono tracking-tighter">{new Date(val).toLocaleString()}</span>;
+  if (field === 'eventName') return <span className="text-[11px] font-black text-red-500 mono bg-red-950/20 px-1.5 py-0.5 rounded border border-red-900/30 uppercase">{val}</span>;
+  if (typeof val === 'object') return <span className="text-[12px] text-gray-500 mono italic">{JSON.stringify(val).substring(0, 30)}...</span>;
+  return <span className="text-[14px] text-gray-300 font-semibold tracking-tight whitespace-nowrap overflow-hidden text-ellipsis max-w-[200px] block">{val || '---'}</span>;
 };
 
 // Process Chain Component
@@ -63,19 +63,58 @@ const ProcessChain = React.memo(({ detections, isActive }: { detections: Detecti
     };
     const carveString = (path: string) => (path.split(/[\\/]/).pop() || path).replace(/"/g, "'").trim();
 
-    detections.slice(0, 100).forEach(d => {
+        const getIcon = (path: string) => {
+      const lower = path.toLowerCase();
+      if (lower.endsWith('.exe')) return '⚙️ ';
+      if (lower.endsWith('.dll')) return '📦 ';
+      if (lower.endsWith('.ps1') || lower.endsWith('.psm1')) return '🐚 ';
+      if (lower.endsWith('.js')) return '📜 ';
+      return '📄 ';
+    };
+
+
+        const telemetryBatch = detections.slice(0, 150);
+
+
+telemetryBatch.forEach(d => {
+      if (edges.size > 100) return;
+
       const user = d.objectUser || d.suser || "System";
       const parent = d.parentFilePath || d.parentProcessName || d.parentName;
       const process = d.processFilePath || d.processName;
-      if (parent && process) {
-        const uId = getSafeId(`u_${user}`);
-        const pId = getSafeId(`p_${parent}`);
-        const prId = getSafeId(`pr_${process}`);
-        nodes.set(uId, `👤 ${user}`);
-        nodes.set(pId, `⚙️ ${carveString(parent)}`);
-        nodes.set(prId, `⚙️ ${carveString(process)}`);
-        edges.add(`${uId} --> ${pId}`);
-        edges.add(`${pId} --> ${prId}`);
+      const object = d.objectFilePath || d.objectName;
+      const objectCmd = d.objectCmd || d.processCmd
+
+      // Identity -> Parent -> Process -> Object
+      const userId = getSafeId(`u_${user}`);
+      nodes.set(userId, `👤 ${user}`);
+
+      if (parent) {
+        const parentId = getSafeId(`p_${parent}`);
+        nodes.set(parentId, `⚙️ ${carveString(parent)}`);
+        edges.add(`${userId} --> ${parentId}`);
+
+        if (process) {
+          const processId = getSafeId(`pr_${process}`);
+          nodes.set(processId, `${getIcon(process)}${carveString(process)}`);
+          edges.add(`${parentId} --> ${processId}`);
+
+          if (object) {
+            const objectId = getSafeId(`obj_${object}`);
+            nodes.set(objectId, `📄 ${carveString(object)}`);
+            edges.add(`${processId} --> ${objectId}`);
+          }
+          if(objectCmd){
+            const objectCmdId = getSafeId(`obj_${objectCmd}`);
+            nodes.set(objectCmdId, `📄 ${carveString(objectCmd)}`);
+            edges.add(`${processId} --> ${objectCmdId}`);
+          }
+
+        }
+      } else if (process) {
+        const processId = getSafeId(`pr_${process}`);
+        nodes.set(processId, `${getIcon(process)}${carveString(process)}`);
+        edges.add(`${userId} --> ${processId}`);
       }
     });
 
@@ -214,8 +253,8 @@ const DetectionRow = React.memo(({ det, columns, isExpanded, onToggle, onHover, 
     {isExpanded && (
       <tr className="bg-black/95">
         <td colSpan={columns.length + 1} className="p-6 border-b border-red-900/40">
-          <div className="text-[11px] font-black text-red-500 uppercase tracking-[0.2em] mb-4">Decoded Telemetry Packet: {det.uuid}</div>
-          <pre className="mono text-[11px] text-gray-400 bg-[#080808] p-5 rounded border border-red-900/30 overflow-x-auto">{JSON.stringify(det, null, 2)}</pre>
+          <div className="text-[11px] font-black text-red-500 uppercase tracking-[0.2em] mb-4">JSON Log Packet: {det.uuid}</div>
+          <pre className="mono text-[15px] text-gray-400 bg-[#080808] p-5 rounded border border-red-900/30 overflow-x-auto">{JSON.stringify(det, null, 2)}</pre>
         </td>
       </tr>
     )}
@@ -264,8 +303,20 @@ const App: React.FC = () => {
       setSelectFields('principalName,endpointHostName,userAgent,osName,request,requestBase,dst,dstLocation,act,ruleName,urlCat,score,serverTls,eventTime');
       setTmv1Query('act:"*"');
       setViewMode('network');
-    } else {
-      setSelectFields('objectUser,parentFilePath,processFilePath,objectFilePath,eventName,eventTime,severity');
+    }
+     else if (activeTab === 'search/detections') {
+    setSelectFields('eventName,processFilePath,platformAssetTags,objectFilePath,endpointHostName,channel,tags');
+    setTmv1Query('eventName:"*" AND NOT eventName:("APPLICATION_CONTROL_VIOLATION") AND endpointHostName:"*" AND objectFilePath:RunOnce');
+    setViewMode('grid');
+  }
+    else if (activeTab === 'search/emailActivities'){
+      setSelectFields('mailUrlsRealLink: ":" AND (attachmentSha256:"*")  OR mailSourceDomain:(gmail or outlook or sky)')
+      setTmv1Query('mailToAddresses,mailFromAddresses,mailMsgSubject,mailSenderIp,mailWholeHeader,mailReturnPath,mailUrlsRealLink')
+      setViewMode('grid');
+    }
+    
+    else {
+      setSelectFields('endpointHostName,parentFilePath,parentProcessName,processFilePath,processName,objectUser,processCmd,severity');
       setTmv1Query('endpointHostName:"*"');
       setViewMode('grid');
     }
@@ -313,7 +364,7 @@ const App: React.FC = () => {
           </div>
           <div>
           <h1 className="text-2xl font-black tracking-tighter">VISION <span className="text-red-600">DONE</span></h1>
-          <p className="text-[8px] font-black tracking-[0.5em] text-gray-500 uppercase mt-1.5">The Search you need when shit hits the fan</p>
+          <p className="text-[11px] font-black tracking-[0.5em] text-gray-500 uppercase mt-1.5">The Search you need when shit hits the fan</p>
           </div>
         </div>
         <button onClick={() => setConfig({ ...config, region: (prompt('Region (eu, us, sg, jp, au):') as any) || config.region })} 
@@ -332,8 +383,8 @@ const App: React.FC = () => {
 
       <div className="bg-[#101010] border-b titanium-border flex flex-col lg:flex-row items-center px-8 py-5 space-y-4 lg:space-y-0 lg:space-x-8 shadow-2xl">
         <div className="flex space-x-4">
-          <input type="datetime-local" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="bg-black border border-red-900/50 rounded px-4 py-2 text-[14px] font-mono focus:border-red-600 outline-none" />
-          <input type="datetime-local" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="bg-black border border-red-900/50 rounded px-4 py-2 text-[14px] font-mono focus:border-red-600 outline-none" />
+          <input type="datetime-local" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="bg-black border border-red-900/50 rounded px-4 py-2 text-[16px] font-mono focus:border-red-600 outline-none" />
+          <input type="datetime-local" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="bg-black border border-red-900/50 rounded px-4 py-2 text-[16px] font-mono focus:border-red-600 outline-none" />
         </div>
         <div className="flex-1 relative w-full">
            <input type="text" placeholder="EXECUTE SCAN PROTOCOL..." value={tmv1Query} onChange={(e) => setTmv1Query(e.target.value)}
@@ -348,12 +399,12 @@ const App: React.FC = () => {
       {showAdvanced && (
         <div className="bg-black border-b titanium-border px-8 py-10 grid grid-cols-2 gap-12 animate-in slide-in-from-top-6 duration-400 shadow-2xl">
           <div className="space-y-4">
-            <label className="text-[14px] font-black text-red-500 uppercase tracking-widest flex items-center"><i className="fa-solid fa-terminal mr-3"></i>Search Logic</label>
-            <textarea value={tmv1Query} onChange={(e) => setTmv1Query(e.target.value)} className="w-full h-32 bg-[#050505] border border-red-900/60 rounded p-5 font-mono text-[14px] text-red-100 outline-none focus:border-red-600" />
+            <label className="text-[17px] font-black text-red-500 uppercase tracking-widest flex items-center"><i className="fa-solid fa-terminal mr-3"></i>Search Logic</label>
+            <textarea value={tmv1Query} onChange={(e) => setTmv1Query(e.target.value)} className="text-[16px] w-full h-32 bg-[#050505] border border-red-900/60 rounded p-5 font-mono  text-red-100 outline-none focus:border-red-600" />
           </div>
           <div className="space-y-4">
-            <label className="text-[14px] font-black text-gray-500 uppercase tracking-widest flex items-center"><i className="fa-solid fa-layer-group mr-3"></i>Schema Matrix</label>
-            <textarea value={selectFields} onChange={(e) => setSelectFields(e.target.value)} className="w-full h-32 bg-[#050505] border titanium-border rounded p-5 font-mono text-[14px] text-gray-400 outline-none focus:border-red-600" />
+            <label className="text-[17px] font-black text-gray-500 uppercase tracking-widest flex items-center"><i className="fa-solid fa-layer-group mr-3"></i>Field Selector - Leave it BLANK to capture ALL fields</label>
+            <textarea value={selectFields} onChange={(e) => setSelectFields(e.target.value)} className="w-full h-32 bg-[#050505] border titanium-border rounded p-5 font-mono text-[16px] text-gray-400 outline-none focus:border-red-600" />
           </div>
         </div>
       )}
@@ -361,24 +412,24 @@ const App: React.FC = () => {
       <TelemetryGraph detections={detections} loading={loading} onDateClick={setDateFilter} selectedDate={dateFilter} isCollapsed={isGraphCollapsed} onToggleCollapse={() => setIsGraphCollapsed(!isGraphCollapsed)} />
 
       <main className="flex-1 p-8 grid grid-cols-1 lg:grid-cols-4 gap-10 bg-[#050505]">
-        <div className="lg:col-span-3 titanium-black rounded-sm border titanium-border overflow-hidden bg-[#0a0a0a] shadow-2xl">
+        <div className="lg:col-span-3 titanium-black rounded-sm border titanium-border overflow-hidden bg-[#0a0a0a] shadow-2xl ">
           <div className="bg-[#0f0f0f] border-b titanium-border px-6 py-3.5 flex items-center space-x-3">
-            <button onClick={() => setViewMode('grid')} className={`px-6 py-2.5 text-[12px] font-black uppercase tracking-widest rounded ${viewMode === 'grid' ? 'bg-red-800 shadow-[0_0_15px_rgba(239,68,68,0.6)]' : 'bg-neutral-900'}`}>Grid</button>
-            <button onClick={() => setViewMode('chain')} className={`px-6 py-2.5 text-[12px] font-black uppercase tracking-widest rounded ${viewMode === 'chain' ? 'bg-red-800 shadow-[0_0_15px_rgba(239,68,68,0.6)]' : 'bg-neutral-900'}`}>Process Chain</button>
-            <button onClick={() => setViewMode('network')} className={`px-6 py-2.5 text-[12px] font-black uppercase tracking-widest rounded ${viewMode === 'network' ? 'bg-red-800 shadow-[0_0_15px_rgba(239,68,68,0.6)]' : 'bg-neutral-900'}`}>Network Chain</button>
+            <button onClick={() => setViewMode('grid')} className={`px-6 py-2.5 text-[16px] font-black uppercase tracking-widest rounded ${viewMode === 'grid' ? 'bg-red-800 shadow-[0_0_15px_rgba(239,68,68,0.6)]' : 'bg-neutral-900'}`}>Telemetry Logs</button>
+            <button onClick={() => setViewMode('chain')} className={`px-6 py-2.5 text-[16px] font-black uppercase tracking-widest rounded ${viewMode === 'chain' ? 'bg-red-800 shadow-[0_0_15px_rgba(239,68,68,0.6)]' : 'bg-neutral-900'}`}>Process Chain</button>
+            <button onClick={() => setViewMode('network')} className={`px-6 py-2.5 text-[16px] font-black uppercase tracking-widest rounded ${viewMode === 'network' ? 'bg-red-800 shadow-[0_0_15px_rgba(239,68,68,0.6)]' : 'bg-neutral-900'}`}>Network Chain</button>
           </div>
           <div className="overflow-x-auto max-h-[800px] scrollbar-thin">
             {viewMode === 'grid' ? (
-              <table className="w-full text-left table-fixed">
-                <thead className="sticky top-0 bg-[#0d0d0d] z-10 border-b titanium-border text-[12px] ">
+              <table className="w-full text-left table-fixed ">
+                <thead className="sticky top-0 bg-[#0d0d0d] z-10 border-b titanium-border text-[16px] ">
                   <tr>
                     <th className="p-5 w-3 text-center text-gray-500 "><span className="fa-solid fa-database text-base text-gray-00"></span></th>
-                    {columns.map(col => <th key={col} className="p-5 text-[12px] font-black text-gray-400 uppercase tracking-widest">{col.replace(/([A-Z])/g, ' $1')}</th>)}
+                    {columns.map(col => <th key={col} className="p-5 text-[14px] font-black text-gray-400 uppercase tracking-widest">{col.replace(/([A-Z])/g, ' $1')}</th>)}
                   </tr>
                 </thead>
                 <tbody className="">
                   {filteredDetections.length === 0 ? (
-                    <tr><td colSpan={columns.length + 1} className="p-20 text-center text-gray-700 font-black uppercase tracking-[0.5em] opacity-30">No Telemetry Recorded</td></tr>
+                    <tr><td colSpan={columns.length + 1} className=" p-20 text-center text-gray-700 font-black uppercase tracking-[0.5em] opacity-30">No Telemetry Recorded</td></tr>
                   ) : (
                     filteredDetections.map((det, idx) => (
                       <DetectionRow key={idx} det={det} columns={columns} isExpanded={expandedRows.has(idx)} onToggle={toggleRow} onHover={(i: any, e: any) => {setHoveredRowIdx(i); setHudPosition({y: e.clientY});}} onHoverEnd={() => setHoveredRowIdx(null)} idx={idx} />
@@ -399,10 +450,15 @@ const App: React.FC = () => {
             <div className="titanium-black border border-red-900/50 rounded p-8 space-y-5 shadow-2xl relative overflow-hidden bg-gradient-to-br from-[#141414] to-[#080808]">
               <div className="text-red-500 flex items-center space-x-3 mb-3">
                 <i className="fa-solid fa-microchip text-xl"></i>
-                <span className="text-[25px] font-black uppercase tracking-widest">ASK AI</span>
+                <span className="text-[25px] font-black uppercase tracking-widest">Analyse with Gemini</span>
+              </div>
+              <div>
+                <p className="text-[14px] text-gray-400 uppercase font-black leading-relaxed tracking-widest opacity-80">
+                  Generate a comprehensive analysis of the <span className="text-red-500 text-xl">{filteredDetections.length}</span> Telemetry clusters using Gemini 3.
+                </p>
               </div>
               <button onClick={handleAnalyze} disabled={analyzing} className="w-full py-5 bg-red-700/10 border border-red-600/50 text-red-500 hover:bg-red-700 hover:text-white font-black uppercase rounded tracking-[0.3em] transition-all active:scale-95">
-                {analyzing ? <><i className="fa-solid fa-sync fa-spin mr-3"></i>ANALYZING...</> : <><i className="fa-solid fa-sparkles mr-3"></i>DECODE THREATS</>}
+                {analyzing ? <><i className="fa-solid fa-sync fa-spin mr-3"></i>ANALYZING...</> : <><i className="fa-solid fa-sparkles mr-3"></i>ASK AI</>}
               </button>
             </div>
           )}
