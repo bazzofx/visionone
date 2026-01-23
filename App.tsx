@@ -1,5 +1,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { TrendMicroService } from './services/trendService';
 import { analyzeDetections } from './services/geminiService';
 import { Detection, QueryParams, UserConfig, SearchEndpoint } from './types';
@@ -89,6 +91,8 @@ const ProcessChain = React.memo(({ detections, isActive }: { detections: Detecti
 
       // Identity -> Parent -> Process -> Object
       const userId = getSafeId(`u_${user}`);
+      // Fixed: nodes.set(userId) was incorrect because it expects 2 arguments. 
+      // The subsequent line already correctly sets the node label.
       nodes.set(userId, `👤 ${user}`);
 
       if (parent) {
@@ -758,12 +762,12 @@ const App: React.FC = () => {
                               {loading ? (
                                 <div className="flex flex-col items-center">
                                   <i className="fa-solid fa-satellite-dish fa-spin text-7xl mb-8 text-red-600"></i>
-                                  <p className="text-[14px] font-black uppercase tracking-[0.8em] animate-pulse text-red-500">INITIATING_UPLINK...</p>
+                                  <p className="text-[14px] font-black uppercase tracking-[0.8em] animate-pulse text-red-500">Establishing Connection...</p>
                                 </div>
                               ) : (
                                 <>
                                   <i className="fa-solid fa-database text-7xl mb-8 text-red-900"></i>
-                                  <p className="text-[14px] font-black uppercase tracking-[0.8em]">DATA_PIPELINE_EMPTY</p>
+                                  <p className="text-[14px] font-black uppercase tracking-[0.8em]">DATA Pipeline Empty</p>
                                   <p className="text-[10px] mt-5 font-mono text-gray-600 uppercase tracking-widest">Re-calculate search matrix parameters</p>
                                 </>
                               )}
@@ -841,7 +845,7 @@ const App: React.FC = () => {
                   TACTICAL INTEL REPORT
                 </h3>
                 <div className="prose prose-invert max-w-none text-[13px] leading-loose text-gray-300 font-medium max-h-[640px] overflow-y-auto scrollbar-thin pr-5 selection:bg-red-700/40">
-                   {analysis}
+                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{analysis}</ReactMarkdown>
                 </div>
               </div>
             )}

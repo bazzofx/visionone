@@ -10,19 +10,39 @@ export const analyzeDetections = async (detections: Detection[]): Promise<string
   const prompt = `
     Act as a senior SOC analyst. Analyze the following Trend Micro Vision One detections:
     ${JSON.stringify(detections.slice(0, 10))}
-    
+    Objective:
     Provide a concise summary of:
     1. Quick summary 10-20 words of the event, make a judgement between False Positive, True Positive or Suspicious
-    2. Key threat patterns observed (e.g., common attachment types, suspicious subjects).
-    3. High-risk users or targets.
-    4. Recommended immediate response actions for these specific events.
+    2. Key threat patterns observed and Indicators of compromised in a bullet list
+    3. High-risk users or targets in a bullet list
+    4. Indepth analysis of logs with explanation of how they correlate together
+    5. Recommended immediate response actions for these specific events.
     
+    Format Notes:
     Format the output using professional Markdown with clear headings. Use a serious, analytical tone.
     Use Markdown headings for main sections: # for title, ### or #### for subsections.
     Include bold labels for metadata (Date, Analyst, Severity),users, files, tools
     Add one blank line between list blocks and paragraphs.
     Keep three dashes --- to separate metadata from content, if present.
     Keep the formatting consistent throughout all sections.
+    
+    Format the output with professional Markdown headers. Tone: Strategic, Urgent, Concise.
+    The answer must strictly follow the below format
+    Format Style:
+
+    # Title Log Analysis Report
+    ## 1. Quick Summary
+    Mmake a judgement between False Positive, True Positive or Suspicious
+    Quick summary 10-20 words of the event
+    ---
+    ## 2. Key Threat Patterns and Indicators of Compromise
+    ---
+    ## 3. High Risk User Targets
+    ---
+    ## 4. Event Analysis
+    ---
+    ## 5. Recommended Immediate Response
+
   `;
 
   try {
