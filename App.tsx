@@ -2,9 +2,13 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { TrendMicroService } from './services/trendService';
-import { analyzeDetections } from './services/geminiService';
+import { analyzeDetections } from './services/localLLMService';
 import { NetworkChain } from './services/NetworkChain';
 import { Detection, QueryParams, UserConfig, SearchEndpoint } from './types';
+
+// Backend internal server
+const API_BASE_URL = 'http://localhost:3001/api';
+
 
 // Memoized Stat Component
 const StatCard = React.memo(({ label, value, icon, color }: { label: string; value: string | number; icon: string; color: string }) => (
