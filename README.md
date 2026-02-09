@@ -1,23 +1,28 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Trend Vision Done + LLM
 
-# Run and deploy your AI Studio app
+**Prerequisites:**  
+- Node.js
 
-This contains everything you need to run your app locally.
+**Optional:** 
+- BitNetLLM(If you want local LLM Analysis, FREE using CPU) 
+- Google Gemini (Easy set up, just need API Key)
 
-View your app in AI Studio: https://ai.studio/apps/drive/1_GDPTmy8NPbY6Hh5o3Lbtg6Mrqcoz3sj
-
-## Run Locally
-
-**Prerequisites:**  Node.js
-
+---
 
 1. Install dependencies:
    `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
+2. Set the `VITE_TREND_API_KEY=` in [.env.local](.env.local) 
+3. Set the `VITE_GEMINI_API_KEY=` in [.env.local](.env.local)
+The  Google Gemini API is no longer the default option, and s not been utilized. To use it again change from app.tsx `import { analyzeDetections }` to import `geminiService` instead of `localLLmService`.
+4. Install [BitNet LLM](https://github.com/microsoft/BitNet) if you rather have local LLM. Vice versa, if you do not want to use the BitNet, and want to use the Google Gemini API instead, you will need to change the `import { analyzeDetections }` from `localLLMService` to `geminiService`
+5. Run the app:
    `npm run dev`
+
+6. Activate Virtual Env: `venv/script/activate`
+7. Run BackEnd API: `node server/llm-api.js`
+> If you are running the googleGemin API you do not need to run the back-end local Api server.
+
+
 
 ## Running BackEnd Local Api Server
 Make sure BitNet LLM is installed and you run run the node llm-api.js inside the virtual environment
