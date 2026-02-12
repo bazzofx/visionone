@@ -355,12 +355,14 @@ const ProcessChain = React.memo(({ detections, isActive }: { detections: Detecti
       <div 
         ref={containerRef}
         className="flex-1 overflow-hidden relative cursor-grab active:cursor-grabbing min-h-[500px]"
+        style={{ overscrollBehavior: 'none' }} // 👈 ADD THIS prevent scrolling up and down the page
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
         onWheel={(e) => {
           e.preventDefault();
+          e.stopPropagation(); // 👈  ADD THIS prevent scrolling up and down the page
           const delta = e.deltaY > 0 ? -0.1 : 0.1;
           setZoomLevel(prev => Math.max(0.5, Math.min(3, prev + delta)));
         }}
