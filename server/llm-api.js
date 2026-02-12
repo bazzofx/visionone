@@ -31,15 +31,15 @@ app.post('/api/analyze', async (req, res) => {
   
   try {
     const { detections } = req.body;
-    
+    console.log(`DEBUG detection: ${detections}`)
     if (!detections || !Array.isArray(detections)) {
       return res.status(400).json({ error: 'Missing detections array' });
     }
 
     // Format the detections into a proper prompt
     const prompt = formatPrompt(detections);
-    console.log('[LLM API] Sending prompt to Ollama (first 100 chars):', prompt.substring(0, 100) + '...');
-    
+    console.log('[LLM API] Sending prompt to Ollama (first 5000 chars):', prompt.substring(0, 5000) + '...');
+    console.log(`DEBUG PROMPT: ${prompt}`)
     // Run Ollama and get the output
     const analysis = await runOllamaAndGetOutput(prompt);
     
@@ -65,10 +65,13 @@ app.post('/api/analyze', async (req, res) => {
 /**
  * Format detections into a prompt for CodeLlama
  */
-function formatPrompt(detections) {
+function formatPrompt_old(detections) {
   const detectionText = detections.map((d, i) => {
     return `${i + 1}. ${d.description || d.name || 'Unknown'} - Severity: ${d.severity || 'medium'}, Confidence: ${d.confidence || '0%'}`;
   }).join('\n');
+
+  console.log(`DEBUG Detection Text: ${detectionText}`)
+
 
   return `You are a security analyst. Analyze these security detections and provide a concise summary:
 
@@ -82,15 +85,78 @@ Provide a brief analysis including:
 Keep it concise, 3-5 sentences maximum.`;
 }
 
+function formatPrompt(detections, limit = 100) {
+  // Take only the first N detections and stringify as one line
+  const uniqueDetections = [];
+  const seenProcessNames = new Set();
+  
+  for (const detection of detections) {
+    const processName = detection.processName || detection.processFilePath || '';
+    if (!seenProcessNames.has(processName)) {
+      seenProcessNames.add(processName);
+      uniqueDetections.push(detection);
+    }
+  }
+  
+  // Take only the first N unique detections and stringify as one line
+  const logData = JSON.stringify(uniqueDetections.slice(0, limit));
+  console.log(`DEBUG LOG DATA-----------------------:${logData}`)
+
+  return `Act as a senior SOC analyst. Analyze the following Trend Micro Vision One detections:
+
+${logData}
+
+Objective:
+    Provide a concise summary of:
+    1. Quick summary 10-20 words of the event, make a judgement between False Positive, True Positive or Suspicious
+    2. Key threat patterns observed and Indicators of compromised in a bullet list
+    3. High-risk users or targets in a bullet list
+    4. Indepth analysis of logs with explanation of how they correlate together
+    5. Recommended immediate response actions for these specific events.
+    
+    Format Notes:
+    Format the output using professional Markdown with clear headings. Use a serious, analytical tone.
+    Use Markdown headings for main sections: # for title, ### or #### for subsections.
+    Every Header should be on a new line followed by a # for the title
+    Include bold labels for metadata (Date, Analyst, Severity),users, files, tools
+    Add one blank line between list blocks and paragraphs.
+    Keep three dashes --- to separate metadata from content, if present.
+    Keep the formatting consistent throughout all sections.
+    
+    Format the output with professional Markdown headers. Tone: Strategic, Urgent, Concise.
+    The answer must strictly follow the below format
+    Format Style:
+
+    # Title Log Analysis Report
+    ## 1. Quick Summary
+    Mmake a judgement between False Positive, True Positive or Suspicious
+    Quick summary 10-20 words of the event
+    ---
+    ## 2. Key Threat Patterns and Indicators of Compromise
+    ---
+    ## 3. High Risk User Targets
+    ---
+    ## 4. Event Analysis
+    ---
+    ## 5. Recommended Immediate Response`;
+}
+
+
+
+
 /**
  * Run Ollama and pipe output to variable
  */
+// const modelName = 'codellama:7b-instruct'
+const modelName = 'llama3.1:8b'
 async function runOllamaAndGetOutput(prompt) {
   console.log('[LLM API] Starting Ollama process...');
   
   return new Promise((resolve, reject) => {
     // Start ollama run without prompt argument - we'll pipe via stdin
-    const ollama = spawn('ollama', ['run', 'codellama:7b-instruct'], {
+    
+
+    const ollama = spawn('ollama', ['run', modelName], {
       shell: false, // Don't use shell for better control
       windowsHide: true,
       stdio: ['pipe', 'pipe', 'pipe'] // Enable stdin piping
@@ -107,7 +173,7 @@ async function runOllamaAndGetOutput(prompt) {
     ollama.stdout.on('data', (data) => {
       const chunk = data.toString();
       output += chunk;
-      console.log(`[LLM API] Received ${chunk.length} chars from Ollama`);
+      //console.log(`[LLM API] Received ${chunk.length} chars from Ollama`);
     });
     
     // PIPE: Collect stderr data (for debugging)
@@ -118,7 +184,7 @@ async function runOllamaAndGetOutput(prompt) {
       if (chunk.toLowerCase().includes('error')) {
         console.error('[LLM API] Ollama stderr error:', chunk);
       } else {
-        console.log('[LLM API] Ollama progress:', chunk.substring(0, 50) + '...');
+       // console.log('[LLM API] Ollama progress:', chunk.substring(0, 50) + '...');
       }
     });
     

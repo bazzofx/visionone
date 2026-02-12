@@ -8,39 +8,47 @@ const API_BASE_URL = 'http://localhost:3001/api';
  * Replaces Google Gemini API call with local BitNet inference.
  */
 export const analyzeDetections = async (detections: Detection[]): Promise<string> => {
-  console.log('[LOCAL LLM] Starting analysis with', detections.length, 'detections');
+  console.log('[LOCAL LLM] Starting analysis with', detections?.length || 0, 'detections');
   
-  if (!detections.length) return "No detections to analyze.";
+  if (!detections || detections.length === 0) {
+    return "No detections to analyze.";
+  }
 
   try {
-    console.log('[LOCAL LLM] Sending request to backend API...');
+    console.log('[LOCAL LLM] Sending to: http://localhost:3001/api/analyze');
     
-    const response = await fetch(`${API_BASE_URL}/analyze`, {
+    const response = await fetch('http://localhost:3001/api/analyze', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        detections: detections.slice(0, 1) // Send only sample for performance
+        detections: detections.slice(0, 3) // Use only 3 for testing
       })
     });
 
+    console.log('[LOCAL LLM] Response status:', response.status);
+    console.log('[LOCAL LLM] Response headers:', Object.fromEntries(response.headers.entries()));
+    
+    const responseText = await response.text();
+    console.log('[LOCAL LLM] Raw response text:', responseText);
+    
     if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`HTTP ${response.status}: ${errorText}`);
+      throw new Error(`HTTP ${response.status}: ${responseText}`);
     }
 
-    const data = await response.json();
+    const data = JSON.parse(responseText);
+    console.log('[LOCAL LLM] Parsed response data:', data);
     
     if (data.error) {
       throw new Error(data.error);
     }
     
-    console.log('[LOCAL LLM] Analysis completed successfully');
-    return data.analysis || "No analysis returned from backend.";
+    console.log('[LOCAL LLM] Analysis received, length:', data.analysis?.length || 0);
+    return data.analysis || "No analysis text returned.";
 
   } catch (error: any) {
-    console.error('[LOCAL LLM] Analysis Failure:', error);
-    return `Analysis Failed: ${error.message}. Ensure the LLM backend server is running on port 3001.`;
+    console.error('[LOCAL LLM] Full error:', error);
+    return `Analysis Failed: ${error.message}`;
   }
 };
