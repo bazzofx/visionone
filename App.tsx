@@ -85,11 +85,11 @@ telemetryBatch.forEach(d => {
 
       const user = d.objectUser || d.suser || "System";
       const parent = d.parentFilePath || d.parentProcessName || d.parentName;
-      const process = d.processFilePath || d.processName;
+      const process =  d.processName; // d.processFilePath ||
       const object = d.objectFilePath || d.objectName;
-      const objectCmd = d.objectCmd || d.processCmd
+      const objectCmd = d.objectCmd || d.processCmd;
 
-      // Identity -> Parent -> Process -> Object
+      // Identity -> Parent -> ProcessName -> Object
       const userId = getSafeId(`u_${user}`);
       nodes.set(userId, `👤 ${user}`);
 
