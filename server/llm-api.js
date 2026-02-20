@@ -7,7 +7,7 @@ import os from 'os';
 
 // LLM Model Name
 // const modelName = 'llama3.1:8b'
-const modelName = 'mySOC3-llama'
+const modelName = 'mySOC2-llama'
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -205,7 +205,7 @@ app.get('/api/test-ollama', async (req, res) => {
 app.listen(PORT, () => {
   console.log(`[LLM API] Server running on http://localhost:${PORT}`);
   console.log(`[LLM API] Platform: ${os.platform()}`);
-  console.log(`[LLM API] Ollama model: ${model}`);
+  console.log(`[LLM API] Ollama model: ${modelName}`);
   console.log(`\n[LLM API] Available endpoints:`);
   console.log(`  POST http://localhost:${PORT}/api/analyze - Main analysis endpoint`);
   console.log(`  GET  http://localhost:${PORT}/api/test-ollama - Test Ollama connection`);

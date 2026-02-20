@@ -570,7 +570,7 @@ const App: React.FC = () => {
       viewMode: 'grid' as const
     },
     'default': {
-      selectFields: 'endpointHostName,parentFilePath,parentProcessName,processFilePath,processName,objectUser,processCmd,severity',
+      selectFields: 'endpointHostName,parentFilePath,parentProcessName,processFilePath,processName,objectUser,processCmd',
       query: 'endpointHostName:"*"',
       viewMode: 'grid' as const
     }
