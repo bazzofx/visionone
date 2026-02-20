@@ -774,82 +774,79 @@ const App: React.FC = () => {
             </div>
           </div>
           
-          {/* UNIQUE FILTER SECTION - OPTION 1 */}
-          <div className="mt-8 pt-8 border-t border-red-900/30">
-            <h3 className="text-[17px] font-black text-red-500 uppercase tracking-widest flex items-center mb-4">
-              <i className="fa-solid fa-filter-circle-xmark mr-3"></i>
-              Result Deduplication
-            </h3>
+        {/* UNIQUE FILTER SECTION - OPTION 1 with Dynamic Fields */}
+        <div className="mt-8 pt-8 border-t border-red-900/30">
+          <h3 className="text-[17px] font-black text-red-500 uppercase tracking-widest flex items-center mb-4">
+            <i className="fa-solid fa-filter-circle-xmark mr-3"></i>
+            Result Deduplication
+          </h3>
+          
+          <div className="grid grid-cols-3 gap-6">
+            <div className="space-y-2">
+              <label className="flex items-center space-x-2 cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  checked={uniqueFilterEnabled}
+                  onChange={handleUniqueFilterToggle}
+                  className="form-checkbox h-5 w-5 text-red-600 bg-black border-red-900/50 rounded focus:ring-red-600"
+                />
+                <span className="text-[14px] font-black text-gray-300">Enable Unique Filter</span>
+              </label>
+              <p className="text-[10px] text-gray-600 font-mono">
+                Remove duplicate results based on selected field
+              </p>
+            </div>
             
-            <div className="grid grid-cols-3 gap-6">
-              <div className="space-y-2">
-                <label className="flex items-center space-x-2 cursor-pointer">
-                  <input 
-                    type="checkbox" 
-                    checked={uniqueFilterEnabled}
-                    onChange={handleUniqueFilterToggle}
-                    className="form-checkbox h-5 w-5 text-red-600 bg-black border-red-900/50 rounded focus:ring-red-600"
-                  />
-                  <span className="text-[14px] font-black text-gray-300">Enable Unique Filter</span>
-                </label>
-                <p className="text-[10px] text-gray-600 font-mono">
-                  Remove duplicate results based on selected field
-                </p>
-              </div>
-              
-              {uniqueFilterEnabled && (
-                <>
-                  <div className="space-y-2">
-                    <label className="text-[12px] font-black text-gray-500 uppercase block">Deduplicate By</label>
-                    <select 
-                      value={uniqueField}
-                      onChange={handleUniqueFieldChange}
-                      className="w-full bg-black border border-red-900/50 rounded px-4 py-2 text-[14px] font-mono focus:border-red-600 outline-none"
-                    >
-                      <option value="processFilePath">Process Path</option>
-                      <option value="processName">Process Name</option>
-                      <option value="objectFilePath">File/Object</option>
-                      <option value="endpointHostName">Hostname</option>
-                      <option value="objectUser">Username</option>
-                      <option value="eventName">Event Type</option>
-                      <option value="parentFilePath">Parent Process</option>
-                      <option value="severity">Severity Level</option>
-                      <option value="objectCmd">Command Line</option>
-                      <option value="dpt">Destination Port</option>
-                      <option value="srcIp">Source IP</option>
-                      <option value="dstIp">Destination IP</option>
-                    </select>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <label className="text-[12px] font-black text-gray-500 uppercase block">Statistics</label>
-                    <div className="bg-black/50 border border-red-900/30 rounded p-3">
-                      <div className="flex justify-between text-[11px]">
-                        <span className="text-gray-500">Total Results:</span>
-                        <span className="text-red-400 font-mono">{filteredDetections.length}</span>
-                      </div>
-                      <div className="flex justify-between text-[11px] mt-1">
-                        <span className="text-gray-500">Unique Results:</span>
-                        <span className="text-green-400 font-mono">{uniqueDetections.length}</span>
-                      </div>
-                      <div className="flex justify-between text-[11px] mt-1">
-                        <span className="text-gray-500">Duplicates Removed:</span>
-                        <span className="text-yellow-400 font-mono">{filteredDetections.length - uniqueDetections.length}</span>
-                      </div>
-                      <div className="flex justify-between text-[11px] mt-1 pt-1 border-t border-red-900/20">
-                        <span className="text-gray-500">Reduction:</span>
-                        <span className="text-blue-400 font-mono">
-                          {filteredDetections.length ? 
-                            `${Math.round((1 - uniqueDetections.length / filteredDetections.length) * 100)}%` : 
-                            '0%'}
-                        </span>
-                      </div>
+            {uniqueFilterEnabled && (
+              <>
+                <div className="space-y-2">
+                  <label className="text-[12px] font-black text-gray-500 uppercase block">Deduplicate By</label>
+                  <select 
+                    value={uniqueField}
+                    onChange={handleUniqueFieldChange}
+                    className="w-full bg-black border border-red-900/50 rounded px-4 py-2 text-[14px] font-mono focus:border-red-600 outline-none"
+                  >
+                    {/* DYNAMIC OPTIONS from selectFields */}
+                    {columns.map((field) => (
+                      <option key={field} value={field}>
+                        {field.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-[9px] text-gray-700 font-mono">
+                    Fields from your selector: {columns.join(', ')}
+                  </p>
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-[12px] font-black text-gray-500 uppercase block">Statistics</label>
+                  <div className="bg-black/50 border border-red-900/30 rounded p-3">
+                    <div className="flex justify-between text-[11px]">
+                      <span className="text-gray-500">Total Results:</span>
+                      <span className="text-red-400 font-mono">{filteredDetections.length}</span>
+                    </div>
+                    <div className="flex justify-between text-[11px] mt-1">
+                      <span className="text-gray-500">Unique Results:</span>
+                      <span className="text-green-400 font-mono">{uniqueDetections.length}</span>
+                    </div>
+                    <div className="flex justify-between text-[11px] mt-1">
+                      <span className="text-gray-500">Duplicates Removed:</span>
+                      <span className="text-yellow-400 font-mono">{filteredDetections.length - uniqueDetections.length}</span>
+                    </div>
+                    <div className="flex justify-between text-[11px] mt-1 pt-1 border-t border-red-900/20">
+                      <span className="text-gray-500">Reduction:</span>
+                      <span className="text-blue-400 font-mono">
+                        {filteredDetections.length ? 
+                          `${Math.round((1 - uniqueDetections.length / filteredDetections.length) * 100)}%` : 
+                          '0%'}
+                      </span>
                     </div>
                   </div>
-                </>
-              )}
-            </div>
+                </div>
+              </>
+            )}
           </div>
+        </div>
         </div>
       )}
 
@@ -879,11 +876,13 @@ const App: React.FC = () => {
               Network Chain
             </button>
             
-            {/* UNIQUE FILTER INDICATOR */}
+            {/* UNIQUE FILTER INDICATOR - Now shows the actual field name */}
             {uniqueFilterEnabled && (
               <div className="ml-auto flex items-center space-x-2 text-[11px] bg-green-950/30 border border-green-900/50 px-3 py-1.5 rounded">
                 <i className="fa-solid fa-filter-circle-check text-green-500"></i>
-                <span className="text-green-400 font-mono">Unique by {uniqueField}</span>
+                <span className="text-green-400 font-mono">
+                  Unique by {uniqueField.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
+                </span>
                 <span className="text-gray-600">({uniqueDetections.length}/{filteredDetections.length})</span>
               </div>
             )}
@@ -936,7 +935,7 @@ const App: React.FC = () => {
                   Generate a comprehensive analysis of the <span className="text-red-500 text-xl">{displayDetections.length}</span> Telemetry clusters using Local LLM.
                   {uniqueFilterEnabled && (
                     <span className="block text-green-500 text-[10px] mt-1">
-                      (Unique by {uniqueField} - {uniqueDetections.length} unique from {filteredDetections.length} total)
+                      (Unique by {uniqueField.replace(/([A-Z])/g, ' $1').toLowerCase()} - {uniqueDetections.length} unique from {filteredDetections.length} total)
                     </span>
                   )}
                 </p>
