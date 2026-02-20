@@ -70,63 +70,9 @@ app.post('/api/analyze', async (req, res) => {
  * Format detections into a prompt for CodeLlama
  */
 
-function formatPrompt_v1(detections, limit = 100) {
-  // Take only the first N detections and stringify as one line
-  const uniqueDetections = [];
-  const seenProcessNames = new Set();
-  
-  for (const detection of detections) {
-    const processName = detection.processName || detection.processFilePath || '';
-    if (!seenProcessNames.has(processName)) {
-      seenProcessNames.add(processName);
-      uniqueDetections.push(detection);
-    }
-  }
-  
-  // Take only the first N unique detections and stringify as one line
-  const logData = JSON.stringify(uniqueDetections.slice(0, limit));
-  console.log(`DEBUG LOG DATA-----------------------:${logData}`)
 
-  return `Act as a senior SOC analyst. Analyze the following Trend Micro Vision One detections:
 
-${logData}
-
-Objective:
-    Provide a concise summary of:
-    1. Quick summary 10-20 words of the event, make a judgement between False Positive, True Positive or Suspicious
-    2. Key threat patterns observed and Indicators of compromised in a bullet list
-    3. High-risk users or targets in a bullet list
-    4. Indepth analysis of logs with explanation of how they correlate together
-    5. Recommended immediate response actions for these specific events.
-    
-    Format Notes:
-    Format the output using professional Markdown with clear headings. Use a serious, analytical tone.
-    Use Markdown headings for main sections: # for title, ### or #### for subsections.
-    Every Header should be on a new line followed by a # for the title
-    Include bold labels for metadata (Date, Analyst, Severity),users, files, tools
-    Add one blank line between list blocks and paragraphs.
-    Keep three dashes --- to separate metadata from content, if present.
-    Keep the formatting consistent throughout all sections.
-    
-    Format the output with professional Markdown headers. Tone: Strategic, Urgent, Concise.
-    The answer must strictly follow the below format
-    Format Style:
-
-    # Title Log Analysis Report
-    ## 1. Quick Summary
-    Mmake a judgement between False Positive, True Positive or Suspicious
-    Quick summary 10-20 words of the event
-    ---
-    ## 2. Key Threat Patterns and Indicators of Compromise
-    ---
-    ## 3. High Risk User Targets
-    ---
-    ## 4. Event Analysis
-    ---
-    ## 5. Recommended Immediate Response`;
-}
-
-function formatPrompt(detections, limit = 100) {
+function formatPrompt_V1(detections, limit = 100) {
   // Take only the first N detections and stringify as one line
   const uniqueDetections = [];
   const seenProcessNames = new Set();
@@ -205,13 +151,36 @@ markdown
 *   **Threat Hunting:** [Action 4, e.g., Search for execution of suspicious_script.ps1 on other assets`;
 }
 
+function formatPrompt(detections, limit = 100) {
+  // Take only the first N detections and stringify as one line
+  const uniqueDetections = [];
+  const seenProcessNames = new Set();
+  
+  for (const detection of detections) {
+    const processName = detection.processName || detection.processFilePath || '';
+    if (!seenProcessNames.has(processName)) {
+      seenProcessNames.add(processName);
+      uniqueDetections.push(detection);
+    }
+  }
+  
+  // Take only the first N unique detections
+  const logData = JSON.stringify(uniqueDetections.slice(0, limit), null, 2);
+  
+  // SIMPLIFIED PROMPT - just the data and minimal instruction
+  return `Analyze these Trend Micro Vision One detections and provide a SOC report:
+
+${logData}
+
+Remember: Output ONLY the Markdown report with no additional text.`;
+}
 
 /**
  * Run Ollama and pipe output to variable
  */
 // const modelName = 'codellama:7b-instruct'
 
-async function runOllamaAndGetOutput(prompt) {
+async function runOllamaAndGetOutput_v1(prompt) {
   console.log('[LLM API] Starting Ollama process...');
   
   return new Promise((resolve, reject) => {
@@ -275,6 +244,91 @@ async function runOllamaAndGetOutput(prompt) {
     ollama.on('error', (err) => {
       console.error('[LLM API] Failed to spawn Ollama:', err);
       reject(new Error(`Failed to start Ollama: ${err.message}. Make sure Ollama is installed and codellama:7b-instruct is pulled.`));
+    });
+    
+    // Timeout after 60 seconds
+    setTimeout(() => {
+      if (ollama.exitCode === null) {
+        console.log('[LLM API] Ollama timeout - killing process');
+        ollama.kill('SIGKILL');
+        reject(new Error('Ollama timeout after 60 seconds'));
+      }
+    }, 60000);
+  });
+}
+async function runOllamaAndGetOutput(prompt) {
+  console.log('[LLM API] Starting Ollama process...');
+  
+  return new Promise((resolve, reject) => {
+    // Add parameters to enforce strict formatting
+    const ollama = spawn('ollama', [
+      'run',
+      modelName
+    ], {
+      shell: false,
+      windowsHide: true,
+      stdio: ['pipe', 'pipe', 'pipe']
+    });
+    
+    let output = '';
+    let errorOutput = '';
+    
+    // Write the prompt to stdin
+    ollama.stdin.write(prompt);
+    ollama.stdin.end();
+    
+    // Collect stdout data
+    ollama.stdout.on('data', (data) => {
+      const chunk = data.toString();
+      output += chunk;
+    });
+    
+    // Collect stderr data
+    ollama.stderr.on('data', (data) => {
+      const chunk = data.toString();
+      errorOutput += chunk;
+    });
+    
+    // Process complete
+    ollama.on('close', (code) => {
+      console.log(`[LLM API] Ollama process closed with code ${code}`);
+      
+      if (code === 0) {
+        // Clean up the output
+        let cleanOutput = output
+          .replace(/\x1B\[\d+m/g, '') // Remove ANSI color codes
+          .trim();
+        
+        // Additional cleaning to ensure format
+        // Remove any text before the first header
+        const headerIndex = cleanOutput.indexOf('# Log Analysis Report');
+        if (headerIndex > 0) {
+          cleanOutput = cleanOutput.substring(headerIndex);
+        }
+        
+        // Remove any trailing text after the last bullet
+        const lastBulletIndex = cleanOutput.lastIndexOf('*');
+        if (lastBulletIndex > 0) {
+          // Find the end of the line containing the last bullet
+          const endOfLine = cleanOutput.indexOf('\n', lastBulletIndex);
+          if (endOfLine > 0) {
+            cleanOutput = cleanOutput.substring(0, endOfLine + 1);
+          }
+        }
+        
+        console.log(`[LLM API] Successfully got ${cleanOutput.length} chars of output`);
+        resolve(cleanOutput);
+      } else {
+        const error = errorOutput || `Process exited with code ${code}`;
+        console.error('[LLM API] Ollama failed:', error);
+        reject(new Error(error));
+      }
+    });
+    
+    // Handle process spawn errors
+    ollama.on('error', (err) => {
+      console.error('[LLM API] Failed to spawn Ollama:', err);
+      reject(new Error(`Failed to start Ollama: ${err.message}`));
     });
     
     // Timeout after 60 seconds
