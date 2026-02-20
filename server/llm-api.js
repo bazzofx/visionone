@@ -5,6 +5,10 @@ import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import os from 'os';
 
+// LLM Model Name
+// const modelName = 'llama3.1:8b'
+const modelName = 'mySOC-llama'
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
@@ -65,27 +69,8 @@ app.post('/api/analyze', async (req, res) => {
 /**
  * Format detections into a prompt for CodeLlama
  */
-function formatPrompt_old(detections) {
-  const detectionText = detections.map((d, i) => {
-    return `${i + 1}. ${d.description || d.name || 'Unknown'} - Severity: ${d.severity || 'medium'}, Confidence: ${d.confidence || '0%'}`;
-  }).join('\n');
 
-  console.log(`DEBUG Detection Text: ${detectionText}`)
-
-
-  return `You are a security analyst. Analyze these security detections and provide a concise summary:
-
-${detectionText}
-
-Provide a brief analysis including:
-1. Overall risk level (Low/Medium/High/Critical)
-2. Key findings
-3. Recommended actions
-
-Keep it concise, 3-5 sentences maximum.`;
-}
-
-function formatPrompt(detections, limit = 100) {
+function formatPrompt_v1(detections, limit = 100) {
   // Take only the first N detections and stringify as one line
   const uniqueDetections = [];
   const seenProcessNames = new Set();
@@ -141,14 +126,91 @@ Objective:
     ## 5. Recommended Immediate Response`;
 }
 
+function formatPrompt(detections, limit = 100) {
+  // Take only the first N detections and stringify as one line
+  const uniqueDetections = [];
+  const seenProcessNames = new Set();
+  
+  for (const detection of detections) {
+    const processName = detection.processName || detection.processFilePath || '';
+    if (!seenProcessNames.has(processName)) {
+      seenProcessNames.add(processName);
+      uniqueDetections.push(detection);
+    }
+  }
+  
+  // Take only the first N unique detections and stringify as one line
+  const logData = JSON.stringify(uniqueDetections.slice(0, limit));
+  console.log(`DEBUG LOG DATA-----------------------:${logData}`)
 
+  return `Act as a senior SOC analyst. Analyze the following Trend Micro Vision One detections:
+
+${logData}
+
+Objective:
+Provide a concise summary of a security event based on the provided log data. The final output must be a strictly formatted Markdown document.
+
+Required Content:
+Your response must include the following five sections, in order:
+
+Quick Summary: A 10-20 word summary of the event, including a judgement of False Positive, True Positive, or Suspicious.
+
+Key Threat Patterns and Indicators of Compromise: A bulleted list of observed threat patterns and specific IOCs (IPs, hashes, domains, tools).
+
+High-Risk User Targets: A bulleted list of specific users or groups targeted.
+
+Event Analysis: An in-depth narrative analysis of the logs, explaining how the events correlate to form the attack chain.
+
+Recommended Immediate Response: A bulleted list of specific, actionable steps to contain and remediate the event.
+
+CRITICAL FORMATTING INSTRUCTIONS:
+You are to output your response exclusively using the Markdown structure defined below. Adherence to this exact format is mandatory. The tone must be strategic, urgent, concise, and analytical.
+
+Output Format (Strictly Follow This Structure):
+
+markdown
+# Log Analysis Report: [Insert Brief Event Descriptor]
+
+## 1. Quick Summary
+**Judgement:** [False Positive / True Positive / Suspicious]
+**Summary:** [10-20 word summary of the event]
+
+---
+
+## 2. Key Threat Patterns and Indicators of Compromise
+*   **Pattern:** [Description of Tactic, Technique, or Procedure (TTP) observed]
+*   **Pattern:** [Description of another TTP]
+*   **IOC (IP):** [Malicious IP Address]
+*   **IOC (Host):** [Compromised Hostname]
+*   **IOC (File):** [Malicious Filename]
+*   **IOC (Tool):** [Tool or Utility Used]
+
+---
+
+## 3. High Risk User Targets
+*   **[Username]** - [Role/Department]
+*   **[Username]** - [Role/Department]
+
+---
+
+## 4. Event Analysis
+[Provide a detailed, paragraph-based analysis of the event. Correlate the timeline of events from different log sources (e.g., network, endpoint, authentication). Explain how the initial compromise, lateral movement, and potential impact unfolded based on the evidence. Use bold text for key artifacts like **usernames**, **IP addresses**, and **file names** to improve readability.]
+
+---
+
+## 5. Recommended Immediate Response
+*   **Immediate Containment:** [Action 1, e.g., Isolate host WS-FIN-12 from the network.]
+*   **Credential Reset:** [Action 2, e.g., Force password reset for affected user j.smith and audit for password reuse.]
+*   **Block Indicator:** [Action 3, e.g., Block outbound traffic to IP 203.0.113.45 at the firewall.]
+*   **Threat Hunting:** [Action 4, e.g., Search for execution of suspicious_script.ps1 on other assets`;
+}
 
 
 /**
  * Run Ollama and pipe output to variable
  */
 // const modelName = 'codellama:7b-instruct'
-const modelName = 'llama3.1:8b'
+
 async function runOllamaAndGetOutput(prompt) {
   console.log('[LLM API] Starting Ollama process...');
   
@@ -200,7 +262,8 @@ async function runOllamaAndGetOutput(prompt) {
           .trim();
         
         console.log(`[LLM API] Successfully got ${cleanOutput.length} chars of output`);
-        resolve(cleanOutput);
+        // Sends to FrontEnd Here ----------------------------------------------------------->
+        resolve(cleanOutput); 
       } else {
         const error = errorOutput || `Process exited with code ${code}`;
         console.error('[LLM API] Ollama failed:', error);
