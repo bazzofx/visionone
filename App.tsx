@@ -402,8 +402,8 @@ const TacticalHUD = React.memo(({ det, columns, position }: { det: Detection, co
       <div className="space-y-4 max-h-[400px] overflow-y-auto scrollbar-none">
         {columns.map(col => (
           <div key={col} className="border-l border-gray-900 pl-3 hover:border-red-600 transition-colors">
-            <span className="text-[9px] font-black text-gray-600 uppercase block mb-0.5 tracking-[0.15em]">{col.replace(/([A-Z])/g, ' $1')}</span>
-            <span className="text-[12px] text-gray-100 font-mono break-all leading-tight block">
+            <span className="text-[12px] font-black text-gray-600 uppercase block mb-0.5 tracking-[0.15em]">{col.replace(/([A-Z])/g, ' $1')}</span>
+            <span className="text-[14px] text-gray-100 font-mono break-all leading-tight block">
               {typeof det[col] === 'object' ? '[STRUCTURED_DATA]' : String(det[col] || 'NULL_VALUE')}
             </span>
           </div>
@@ -772,7 +772,7 @@ const App: React.FC = () => {
             <div className="titanium-black border border-red-900/50 rounded p-8 space-y-5 shadow-2xl relative overflow-hidden bg-gradient-to-br from-[#141414] to-[#080808]">
               <div className="text-red-500 flex items-center space-x-3 mb-3">
                 <i className="fa-solid fa-microchip text-xl"></i>
-                <span className="text-[25px] font-black uppercase tracking-widest">Analyse with Gemini</span>
+                <span className="text-[25px] font-black uppercase tracking-widest">Analyse with Local AI</span>
               </div>
               <div>
                 <p className="text-[14px] text-gray-400 uppercase font-black leading-relaxed tracking-widest opacity-80">

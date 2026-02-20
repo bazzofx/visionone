@@ -23,7 +23,7 @@ export const analyzeDetections = async (detections: Detection[]): Promise<string
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        detections: detections.slice(0, 3) // Use only 3 for testing
+        detections: detections.slice(0, 10) // Use only 3 for testing
       })
     });
 
