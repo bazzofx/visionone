@@ -32,4 +32,16 @@ cd server
 node llm-api.js
 ```
 
+# Set up custom ModelFile
+We are using a custom instruction model file with the ollama, this is so we can better control the temperature and other aspects of our model.
 
+## Creating Modelfile
+We have the model file located on `server/Modelfile` we will ned to generate the custom model with it.
+On the file we are using the `llama3.1:8b` so we need to have that installed on our computer first using the `ollama cli`
+
+## Creating the Modelfile
+Once you have the correct model you want to use, the default is `llama3.1:8b` but you can change on the Modelfile to a different one
+
+```
+ollama create mySOC-llama -f Modelfile
+```
