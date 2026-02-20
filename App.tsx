@@ -414,7 +414,7 @@ const TacticalHUD = React.memo(({ det, columns, position }: { det: Detection, co
 });
 
 // Telemetry Density Graph
-const TelemetryGraph = React.memo(({ detections, loading, onDateClick, selectedDate, isCollapsed, onToggleCollapse }: any) => {
+const TelemetryGraph = React.memo(({ detections, loading, onDateClick, selectedDate, isCollapsed, onToggleCollapse, uniqueStats }: any) => {
   const chartData = useMemo(() => {
     const groups: Record<string, number> = {};
     const now = Date.now();
@@ -462,7 +462,16 @@ const TelemetryGraph = React.memo(({ detections, loading, onDateClick, selectedD
             )}
             <div className="flex flex-col items-end">
               <span className="text-[11px] text-gray-700 uppercase font-black tracking-widest">Log Count</span>
-              <span className="text-2xl text-red-600 font-black tracking-tighter shadow-sm">{detections.length}</span>
+              <div className="flex items-center space-x-3">
+                {uniqueStats && uniqueStats.enabled && (
+                  <>
+                    <span className="text-sm text-gray-500">Unique:</span>
+                    <span className="text-2xl text-green-500 font-black tracking-tighter shadow-sm">{uniqueStats.unique}</span>
+                    <span className="text-xs text-gray-700">/</span>
+                  </>
+                )}
+                <span className="text-2xl text-red-600 font-black tracking-tighter shadow-sm">{detections.length}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -526,6 +535,10 @@ const App: React.FC = () => {
   const [viewMode, setViewMode] = useState<'grid' | 'chain' | 'network'>('grid');
   const [hoveredRowIdx, setHoveredRowIdx] = useState<number | null>(null);
   const [hudPosition, setHudPosition] = useState({ y: 0 });
+
+  // UNIQUE FILTER STATES - OPTION 1
+  const [uniqueFilterEnabled, setUniqueFilterEnabled] = useState(false);
+  const [uniqueField, setUniqueField] = useState('processFilePath');
 
   const [tmv1Query, setTmv1Query] = useState('');
   const [selectFields, setSelectFields] = useState('');
@@ -631,6 +644,48 @@ const App: React.FC = () => {
     [detections, dateFilter]
   );
 
+  // UNIQUE FILTER MEMO - OPTION 1
+  const uniqueDetections = useMemo(() => {
+    if (!uniqueFilterEnabled || !uniqueField) return filteredDetections;
+    
+    const seen = new Set();
+    const unique = [];
+    
+    for (const detection of filteredDetections) {
+      // Get the value to dedupe by
+      const value = detection[uniqueField as keyof Detection];
+      if (!value) continue; // Skip if field doesn't exist
+      
+      // Create a unique key
+      const key = String(value).toLowerCase().trim();
+      
+      if (!seen.has(key)) {
+        seen.add(key);
+        unique.push(detection);
+      }
+    }
+    
+    console.log(`[Unique Filter] Reduced from ${filteredDetections.length} to ${unique.length} unique by ${uniqueField}`);
+    return unique;
+  }, [filteredDetections, uniqueFilterEnabled, uniqueField]);
+
+  // Get display detections based on filter state
+  const displayDetections = useMemo(() => {
+    return uniqueFilterEnabled ? uniqueDetections : filteredDetections;
+  }, [uniqueFilterEnabled, uniqueDetections, filteredDetections]);
+
+  // Unique stats for display
+  const uniqueStats = useMemo(() => {
+    if (!uniqueFilterEnabled) return null;
+    return {
+      enabled: true,
+      unique: uniqueDetections.length,
+      total: filteredDetections.length,
+      field: uniqueField,
+      removed: filteredDetections.length - uniqueDetections.length
+    };
+  }, [uniqueFilterEnabled, uniqueDetections, filteredDetections, uniqueField]);
+
   const setConfigRegion = useCallback(() => {
     setConfig({ ...config, region: (prompt('Region (eu, us, sg, jp, au):') as any) || config.region });
   }, [config]);
@@ -642,6 +697,14 @@ const App: React.FC = () => {
   const setViewModeGrid = useCallback(() => setViewMode('grid'), []);
   const setViewModeChain = useCallback(() => setViewMode('chain'), []);
   const setViewModeNetwork = useCallback(() => setViewMode('network'), []);
+
+  const handleUniqueFieldChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+    setUniqueField(e.target.value);
+  }, []);
+
+  const handleUniqueFilterToggle = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setUniqueFilterEnabled(e.target.checked);
+  }, []);
 
   return (
     <div className="min-h-screen flex flex-col bg-[#050505] text-gray-100 overflow-x-hidden">
@@ -693,27 +756,112 @@ const App: React.FC = () => {
       </div>
 
       {showAdvanced && (
-        <div className="bg-black border-b titanium-border px-8 py-10 grid grid-cols-2 gap-12 animate-in slide-in-from-top-6 duration-400 shadow-2xl">
-          <div className="space-y-4">
-            <label className="text-[17px] font-black text-red-500 uppercase tracking-widest flex items-center">
-              <i className="fa-solid fa-terminal mr-3"></i>Search Logic
-            </label>
-            <textarea value={tmv1Query} onChange={(e) => setTmv1Query(e.target.value)} 
-                      className="text-[16px] w-full h-32 bg-[#050505] border border-red-900/60 rounded p-5 font-mono text-red-100 outline-none focus:border-red-600" />
+        <div className="bg-black border-b titanium-border px-8 py-10 animate-in slide-in-from-top-6 duration-400 shadow-2xl">
+          <div className="grid grid-cols-2 gap-12">
+            <div className="space-y-4">
+              <label className="text-[17px] font-black text-red-500 uppercase tracking-widest flex items-center">
+                <i className="fa-solid fa-terminal mr-3"></i>Search Logic
+              </label>
+              <textarea value={tmv1Query} onChange={(e) => setTmv1Query(e.target.value)} 
+                        className="text-[16px] w-full h-32 bg-[#050505] border border-red-900/60 rounded p-5 font-mono text-red-100 outline-none focus:border-red-600" />
+            </div>
+            <div className="space-y-4">
+              <label className="text-[17px] font-black text-gray-500 uppercase tracking-widest flex items-center">
+                <i className="fa-solid fa-layer-group mr-3"></i>Field Selector - Leave it BLANK to capture ALL fields
+              </label>
+              <textarea value={selectFields} onChange={(e) => setSelectFields(e.target.value)} 
+                        className="w-full h-32 bg-[#050505] border titanium-border rounded p-5 font-mono text-[16px] text-gray-400 outline-none focus:border-red-600" />
+            </div>
           </div>
-          <div className="space-y-4">
-            <label className="text-[17px] font-black text-gray-500 uppercase tracking-widest flex items-center">
-              <i className="fa-solid fa-layer-group mr-3"></i>Field Selector - Leave it BLANK to capture ALL fields
-            </label>
-            <textarea value={selectFields} onChange={(e) => setSelectFields(e.target.value)} 
-                      className="w-full h-32 bg-[#050505] border titanium-border rounded p-5 font-mono text-[16px] text-gray-400 outline-none focus:border-red-600" />
+          
+          {/* UNIQUE FILTER SECTION - OPTION 1 */}
+          <div className="mt-8 pt-8 border-t border-red-900/30">
+            <h3 className="text-[17px] font-black text-red-500 uppercase tracking-widest flex items-center mb-4">
+              <i className="fa-solid fa-filter-circle-xmark mr-3"></i>
+              Result Deduplication
+            </h3>
+            
+            <div className="grid grid-cols-3 gap-6">
+              <div className="space-y-2">
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    checked={uniqueFilterEnabled}
+                    onChange={handleUniqueFilterToggle}
+                    className="form-checkbox h-5 w-5 text-red-600 bg-black border-red-900/50 rounded focus:ring-red-600"
+                  />
+                  <span className="text-[14px] font-black text-gray-300">Enable Unique Filter</span>
+                </label>
+                <p className="text-[10px] text-gray-600 font-mono">
+                  Remove duplicate results based on selected field
+                </p>
+              </div>
+              
+              {uniqueFilterEnabled && (
+                <>
+                  <div className="space-y-2">
+                    <label className="text-[12px] font-black text-gray-500 uppercase block">Deduplicate By</label>
+                    <select 
+                      value={uniqueField}
+                      onChange={handleUniqueFieldChange}
+                      className="w-full bg-black border border-red-900/50 rounded px-4 py-2 text-[14px] font-mono focus:border-red-600 outline-none"
+                    >
+                      <option value="processFilePath">Process Path</option>
+                      <option value="processName">Process Name</option>
+                      <option value="objectFilePath">File/Object</option>
+                      <option value="endpointHostName">Hostname</option>
+                      <option value="objectUser">Username</option>
+                      <option value="eventName">Event Type</option>
+                      <option value="parentFilePath">Parent Process</option>
+                      <option value="severity">Severity Level</option>
+                      <option value="objectCmd">Command Line</option>
+                      <option value="dpt">Destination Port</option>
+                      <option value="srcIp">Source IP</option>
+                      <option value="dstIp">Destination IP</option>
+                    </select>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label className="text-[12px] font-black text-gray-500 uppercase block">Statistics</label>
+                    <div className="bg-black/50 border border-red-900/30 rounded p-3">
+                      <div className="flex justify-between text-[11px]">
+                        <span className="text-gray-500">Total Results:</span>
+                        <span className="text-red-400 font-mono">{filteredDetections.length}</span>
+                      </div>
+                      <div className="flex justify-between text-[11px] mt-1">
+                        <span className="text-gray-500">Unique Results:</span>
+                        <span className="text-green-400 font-mono">{uniqueDetections.length}</span>
+                      </div>
+                      <div className="flex justify-between text-[11px] mt-1">
+                        <span className="text-gray-500">Duplicates Removed:</span>
+                        <span className="text-yellow-400 font-mono">{filteredDetections.length - uniqueDetections.length}</span>
+                      </div>
+                      <div className="flex justify-between text-[11px] mt-1 pt-1 border-t border-red-900/20">
+                        <span className="text-gray-500">Reduction:</span>
+                        <span className="text-blue-400 font-mono">
+                          {filteredDetections.length ? 
+                            `${Math.round((1 - uniqueDetections.length / filteredDetections.length) * 100)}%` : 
+                            '0%'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
       )}
 
-      <TelemetryGraph detections={detections} loading={loading} 
-                      onDateClick={setDateFilter} selectedDate={dateFilter} 
-                      isCollapsed={isGraphCollapsed} onToggleCollapse={toggleGraphCollapse} />
+      <TelemetryGraph 
+        detections={filteredDetections} 
+        loading={loading} 
+        onDateClick={setDateFilter} 
+        selectedDate={dateFilter} 
+        isCollapsed={isGraphCollapsed} 
+        onToggleCollapse={toggleGraphCollapse}
+        uniqueStats={uniqueStats}
+      />
 
       <main className="flex-1 p-8 grid grid-cols-1 lg:grid-cols-4 gap-10 bg-[#050505]">
         <div className="lg:col-span-3 titanium-black rounded-sm border titanium-border overflow-hidden bg-[#0a0a0a] shadow-2xl">
@@ -730,6 +878,15 @@ const App: React.FC = () => {
                     className={`px-6 py-2.5 text-[16px] font-black uppercase tracking-widest rounded ${viewMode === 'network' ? 'bg-red-800 shadow-[0_0_15px_rgba(239,68,68,0.6)]' : 'bg-neutral-900'}`}>
               Network Chain
             </button>
+            
+            {/* UNIQUE FILTER INDICATOR */}
+            {uniqueFilterEnabled && (
+              <div className="ml-auto flex items-center space-x-2 text-[11px] bg-green-950/30 border border-green-900/50 px-3 py-1.5 rounded">
+                <i className="fa-solid fa-filter-circle-check text-green-500"></i>
+                <span className="text-green-400 font-mono">Unique by {uniqueField}</span>
+                <span className="text-gray-600">({uniqueDetections.length}/{filteredDetections.length})</span>
+              </div>
+            )}
           </div>
           <div className="overflow-x-auto max-h-[800px] scrollbar-thin">
             {viewMode === 'grid' ? (
@@ -745,10 +902,10 @@ const App: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredDetections.length === 0 ? (
+                  {displayDetections.length === 0 ? (
                     <tr><td colSpan={columns.length + 1} className="p-20 text-center text-gray-700 font-black uppercase tracking-[0.5em] opacity-30">No Telemetry Recorded</td></tr>
                   ) : (
-                    filteredDetections.map((det, idx) => (
+                    displayDetections.map((det, idx) => (
                       <DetectionRow key={idx} det={det} columns={columns} 
                                     isExpanded={expandedRows.has(idx)} 
                                     onToggle={toggleRow} 
@@ -760,15 +917,15 @@ const App: React.FC = () => {
                 </tbody>
               </table>
             ) : viewMode === 'chain' ? (
-              <ProcessChain detections={filteredDetections} isActive={true} />
+              <ProcessChain detections={displayDetections} isActive={true} />
             ) : (
-              <NetworkChain detections={filteredDetections} isActive={true} />
+              <NetworkChain detections={displayDetections} isActive={true} />
             )}
           </div>
         </div>
 
         <div className="space-y-8">
-          {filteredDetections.length > 0 && (
+          {displayDetections.length > 0 && (
             <div className="titanium-black border border-red-900/50 rounded p-8 space-y-5 shadow-2xl relative overflow-hidden bg-gradient-to-br from-[#141414] to-[#080808]">
               <div className="text-red-500 flex items-center space-x-3 mb-3">
                 <i className="fa-solid fa-microchip text-xl"></i>
@@ -776,7 +933,12 @@ const App: React.FC = () => {
               </div>
               <div>
                 <p className="text-[14px] text-gray-400 uppercase font-black leading-relaxed tracking-widest opacity-80">
-                  Generate a comprehensive analysis of the <span className="text-red-500 text-xl">{filteredDetections.length}</span> Telemetry clusters using Gemini 3.
+                  Generate a comprehensive analysis of the <span className="text-red-500 text-xl">{displayDetections.length}</span> Telemetry clusters using Local LLM.
+                  {uniqueFilterEnabled && (
+                    <span className="block text-green-500 text-[10px] mt-1">
+                      (Unique by {uniqueField} - {uniqueDetections.length} unique from {filteredDetections.length} total)
+                    </span>
+                  )}
                 </p>
               </div>
               <button onClick={handleAnalyze} disabled={analyzing} 
@@ -799,8 +961,8 @@ const App: React.FC = () => {
         </div>
       </main>
 
-      {viewMode === 'grid' && hoveredRowIdx !== null && filteredDetections[hoveredRowIdx] && (
-        <TacticalHUD det={filteredDetections[hoveredRowIdx]} columns={columns} position={hudPosition} />
+      {viewMode === 'grid' && hoveredRowIdx !== null && displayDetections[hoveredRowIdx] && (
+        <TacticalHUD det={displayDetections[hoveredRowIdx]} columns={columns} position={hudPosition} />
       )}
 
       <footer className="h-10 border-t titanium-border bg-black flex justify-between items-center px-8 text-[9px] font-black text-gray-700 uppercase tracking-[0.5em]">
