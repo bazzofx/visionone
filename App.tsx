@@ -966,7 +966,7 @@ const App: React.FC = () => {
 
       <footer className="h-10 border-t titanium-border bg-black flex justify-between items-center px-8 text-[9px] font-black text-gray-700 uppercase tracking-[0.5em]">
         <span>UPLINK_STABLE</span>
-        <span>STRATEGIC COMMAND // VISION ONE // V1.4</span>
+        <span>STRATEGIC COMMAND // VISION ONE // V1.0</span>
       </footer>
     </div>
   );
