@@ -12,7 +12,7 @@ export default defineConfig({
     sourcemap: false
   },
   server: {
-    port: 3003,
+    port: 5773,
     host: true,
     proxy: {
       // Mapping for all standard Vision One regions

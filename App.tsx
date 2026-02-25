@@ -7,7 +7,7 @@ import { NetworkChain } from './services/NetworkChain';
 import { Detection, QueryParams, UserConfig, SearchEndpoint } from './types';
 
 // Backend internal server
-const API_BASE_URL = 'http://localhost:3001/api';
+const API_BASE_URL = 'http://localhost:5338/api';
 
 // Constants - Move outside component to prevent recreation
 const TABS: { id: SearchEndpoint; label: string; icon: string }[] = [
