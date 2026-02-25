@@ -1,7 +1,7 @@
 import { Detection } from "../types";
 
 // Backend API URL - make sure this matches your server port
-const API_BASE_URL = 'http://localhost:3001/api';
+const API_BASE_URL = 'http://localhost:5338/api';
 
 /**
  * Analyzes a batch of detections using the local LLM backend API.
@@ -15,9 +15,9 @@ export const analyzeDetections = async (detections: Detection[]): Promise<string
   }
 
   try {
-    console.log('[LOCAL LLM] Sending to: http://localhost:3001/api/analyze');
+    console.log('[LOCAL LLM] Sending to: http://localhost:5338/api/analyze');
     
-    const response = await fetch('http://localhost:3001/api/analyze', {
+    const response = await fetch('http://localhost:5338/api/analyze', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
